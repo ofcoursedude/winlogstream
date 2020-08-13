@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -10,8 +9,9 @@ import (
 	"time"
 
 	winlog "github.com/ofcoursedude/gowinlog"
-	"github.com/ofcoursedude/winlogstream/colors"
 	"github.com/subosito/gotenv"
+
+	"github.com/ofcoursedude/winlogstream/colors"
 )
 
 func init() {
@@ -41,7 +41,7 @@ func main() {
 	case "singlelinetrim":
 		msgOutFunc = singleLineTrim
 	default:
-		log.Panic("Unrecognized msg output format")
+		msgOutFunc = singleLine
 	}
 
 	switch outputFormat {
@@ -50,7 +50,7 @@ func main() {
 	case "rfc5424":
 		outputFormatFunc = toRfc5424
 	default:
-		log.Panic("Unrecognized output format")
+		outputFormatFunc = toSimple
 	}
 
 	shutdowner := make(chan bool)
