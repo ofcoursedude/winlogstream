@@ -10,8 +10,6 @@ import (
 
 	winlog "github.com/ofcoursedude/gowinlog"
 	"github.com/subosito/gotenv"
-
-	"github.com/ofcoursedude/winlogstream/colors"
 )
 
 func init() {
@@ -23,10 +21,17 @@ func init() {
 	*/
 }
 
+// var useColor bool
+
 func main() {
 	fmt.Println("Starting...")
 	outputFormat := strings.ToLower(os.Getenv("FORMAT"))
 	msgOut := strings.ToLower(os.Getenv("MSGOUT"))
+	logName := os.Getenv("LOGNAME")
+	// useColor = os.Getenv("USECOLOR") != ""
+	if logName == "" {
+		logName = "Application"
+	}
 
 	var outputFormatFunc func(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string
 	var msgOutFunc func(msg string) string
@@ -67,7 +72,7 @@ func main() {
 
 		// Recieve any future messages on the Application channel
 		// "*" doesn't filter by any fields of the event
-		watcher.SubscribeFromNow("Application", "*")
+		watcher.SubscribeFromNow(logName, "*")
 		defer watcher.Shutdown()
 	EventCollectionLoop:
 		for {
@@ -114,10 +119,11 @@ func parse(
 }
 
 func toSimple(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string {
-	level := eventLevel(evt.Level)
+	// level := eventLevel(evt.Level)
 	output := []string{
 		evt.Created.Format(time.RFC3339),
-		fmt.Sprint(level.Color(), "[", level.String(), "]", colors.Reset),
+		// fmt.Sprint(level.Color(), "[", level.String(), "]", colors.Reset),
+		fmt.Sprint("[", eventLevel(evt.Level).String(), "]"),
 		evt.ProviderName,
 		msgFormat(evt.Msg),
 	}
