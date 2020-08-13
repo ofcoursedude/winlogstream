@@ -1,7 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -9,38 +11,26 @@ import (
 	"time"
 
 	winlog "github.com/ofcoursedude/gowinlog"
-	"github.com/subosito/gotenv"
 
 	"github.com/ofcoursedude/winlogstream/colors"
 )
 
-func init() {
-	gotenv.Load()
-	/*
-		Valid env:
-		FORMAT=simple/rfc5424
-		MSGOUT=full/singleLine/singleLineTrim
-		LOGNAME=[name of log to hook into, defaults to Application]
-		USECOLOR=true/false
-	*/
-}
-
-var useColor bool
+var config Config
 
 func main() {
+	fmt.Println("Welcome to winlogstream")
+	fmt.Println("Usage:")
+
+	config = Config{}
+	config.InitFromFlags()
+	flag.PrintDefaults()
+
 	fmt.Println("Starting...")
-	outputFormat := strings.ToLower(os.Getenv("FORMAT"))
-	msgOut := strings.ToLower(os.Getenv("MSGOUT"))
-	logName := os.Getenv("LOGNAME")
-	useColor = strings.ToLower(os.Getenv("USECOLOR")) == "true"
-	if logName == "" {
-		logName = "Application"
-	}
 
 	var outputFormatFunc func(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string
 	var msgOutFunc func(msg string) string
 
-	switch msgOut {
+	switch config.MessageOutput {
 	case "full":
 		msgOutFunc = func(msg string) string {
 			return msg
@@ -50,21 +40,21 @@ func main() {
 	case "singlelinetrim":
 		msgOutFunc = singleLineTrim
 	default:
-		msgOutFunc = singleLine
+		log.Fatal("Invalid Message Format")
 	}
 
-	switch outputFormat {
+	switch config.OutputFormat {
 	case "simple":
 		outputFormatFunc = toSimple
 	case "rfc5424":
 		outputFormatFunc = toRfc5424
 	default:
-		outputFormatFunc = toSimple
+		log.Fatal("Invalid output format")
 	}
 
 	shutdowner := make(chan bool)
 	go func(sig chan bool) {
-		//when we exit, signal it's done
+		// when we exit, signal it's done
 		defer func() {
 			sig <- true
 		}()
@@ -76,7 +66,10 @@ func main() {
 
 		// Recieve any future messages on the Application channel
 		// "*" doesn't filter by any fields of the event
-		watcher.SubscribeFromNow(logName, "*")
+		err = watcher.SubscribeFromNow(config.LogName, "*")
+		if err != nil {
+			log.Fatal(fmt.Sprint("Can not subscribe to log ", config.LogName))
+		}
 		defer watcher.Shutdown()
 	EventCollectionLoop:
 		for {
@@ -85,8 +78,8 @@ func main() {
 				fmt.Println(outputFormatFunc(evt, msgOutFunc))
 			case err := <-watcher.Error():
 				fmt.Printf("\nError: %v\n\n", err)
-				//Waiting for graceful shutdown signal is good enough to omit
-				//the 'default' block
+				// Waiting for graceful shutdown signal is good enough to omit
+				// the 'default' block
 			case <-sig:
 				break EventCollectionLoop
 				/* default:
@@ -108,25 +101,24 @@ func main() {
 
 func singleLine(msg string) string {
 	return replaceMulti(msg, []string{"\r", "\n"}, " ")
-	// return strings.ReplaceAll(msg, "\r\n", " ")
 }
 
 func singleLineTrim(msg string) string {
 	return strings.Split(strings.Replace(msg, "\r", "", 1), "\r\n")[0]
 }
 
-func parse(
+/*func parse(
 	evt *winlog.WinLogEvent,
 	formatFunc func(evt *winlog.WinLogEvent, msgFormat func(msg string) string) []string,
 	msgFormat func(msg string) string) string {
 	output := formatFunc(evt, msgFormat)
 	return strings.Join(output, " ")
-}
+}*/
 
 func toSimple(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string {
 	level := eventLevel(evt.Level)
 	var levelMsg string
-	if useColor {
+	if config.UseColors {
 		levelMsg = fmt.Sprint(level.Color(), "[", level.String(), "]", colors.Reset)
 	} else {
 		levelMsg = fmt.Sprint("[", eventLevel(evt.Level).String(), "]")
