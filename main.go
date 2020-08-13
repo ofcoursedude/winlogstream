@@ -10,6 +10,8 @@ import (
 
 	winlog "github.com/ofcoursedude/gowinlog"
 	"github.com/subosito/gotenv"
+
+	"github.com/ofcoursedude/winlogstream/colors"
 )
 
 func init() {
@@ -18,17 +20,19 @@ func init() {
 		Valid env:
 		FORMAT=simple/rfc5424
 		MSGOUT=full/singleLine/singleLineTrim
+		LOGNAME=[name of log to hook into, defaults to Application]
+		USECOLOR=true/false
 	*/
 }
 
-// var useColor bool
+var useColor bool
 
 func main() {
 	fmt.Println("Starting...")
 	outputFormat := strings.ToLower(os.Getenv("FORMAT"))
 	msgOut := strings.ToLower(os.Getenv("MSGOUT"))
 	logName := os.Getenv("LOGNAME")
-	// useColor = os.Getenv("USECOLOR") != ""
+	useColor = strings.ToLower(os.Getenv("USECOLOR")) == "true"
 	if logName == "" {
 		logName = "Application"
 	}
@@ -103,11 +107,12 @@ func main() {
 }
 
 func singleLine(msg string) string {
-	return strings.ReplaceAll(msg, "\r\n", " ")
+	return replaceMulti(msg, []string{"\r", "\n"}, " ")
+	// return strings.ReplaceAll(msg, "\r\n", " ")
 }
 
 func singleLineTrim(msg string) string {
-	return strings.Split(msg, "\r\n")[0]
+	return strings.Split(strings.Replace(msg, "\r", "", 1), "\r\n")[0]
 }
 
 func parse(
@@ -119,11 +124,16 @@ func parse(
 }
 
 func toSimple(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string {
-	// level := eventLevel(evt.Level)
+	level := eventLevel(evt.Level)
+	var levelMsg string
+	if useColor {
+		levelMsg = fmt.Sprint(level.Color(), "[", level.String(), "]", colors.Reset)
+	} else {
+		levelMsg = fmt.Sprint("[", eventLevel(evt.Level).String(), "]")
+	}
 	output := []string{
 		evt.Created.Format(time.RFC3339),
-		// fmt.Sprint(level.Color(), "[", level.String(), "]", colors.Reset),
-		fmt.Sprint("[", eventLevel(evt.Level).String(), "]"),
+		levelMsg,
 		evt.ProviderName,
 		msgFormat(evt.Msg),
 	}
@@ -142,4 +152,12 @@ func toRfc5424(evt *winlog.WinLogEvent, msgFormat func(msg string) string) strin
 		msgFormat(evt.Msg),
 	}
 	return strings.Join(output, " ")
+}
+
+func replaceMulti(source string, toReplace []string, replacement string) string {
+	toReturn := source
+	for _, item := range toReplace {
+		toReturn = strings.ReplaceAll(toReturn, item, replacement)
+	}
+	return toReturn
 }
