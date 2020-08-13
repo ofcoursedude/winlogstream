@@ -1,5 +1,9 @@
 package main
 
+import (
+	"github.com/ofcoursedude/winlogstream/colors"
+)
+
 type eventLevel int
 
 const (
@@ -24,13 +28,11 @@ func (e eventLevel) String() string {
 
 func (e eventLevel) Color() string {
 	return [...]string{
-		"\033[31m",
-		"\033[31m",
-		"\033[31m",
-		"\033[33m",
-		"\033[32m",
-		"\033[34m",
+		colors.Red,
+		colors.Red,
+		colors.Red,
+		colors.Yellow,
+		colors.Green,
+		colors.Blue,
 	}[e]
 }
-
-const resetColor = "\033[0m"

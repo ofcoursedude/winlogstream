@@ -10,6 +10,7 @@ import (
 	"time"
 
 	winlog "github.com/ofcoursedude/gowinlog"
+	"github.com/ofcoursedude/winlogstream/colors"
 	"github.com/subosito/gotenv"
 )
 
@@ -116,7 +117,7 @@ func toSimple(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string
 	level := eventLevel(evt.Level)
 	output := []string{
 		evt.Created.Format(time.RFC3339),
-		fmt.Sprint(level.Color(), "[", level.String(), "]", resetColor),
+		fmt.Sprint(level.Color(), "[", level.String(), "]", colors.Reset),
 		evt.ProviderName,
 		msgFormat(evt.Msg),
 	}
