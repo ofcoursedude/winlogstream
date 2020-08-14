@@ -1,6 +1,8 @@
+//Command line tool for hooking into the Windows Event Log and streaming messages as they come in
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -10,28 +12,28 @@ import (
 	"time"
 
 	winlog "github.com/ofcoursedude/gowinlog"
+
 	"github.com/ofcoursedude/winlogstream/colors"
-	"github.com/subosito/gotenv"
 )
 
-func init() {
-	gotenv.Load()
-	/*
-		Valid env:
-		FORMAT=simple/rfc5424
-		MSGOUT=full/singleLine/singleLineTrim
-	*/
-}
+//winlogstream is a line tool for hooking into the Windows Event Log and streaming messages as they come in
+
+//In-app configuration object
+var config Config
 
 func main() {
+	fmt.Println("Welcome to winlogstream")
+	fmt.Println("Usage:")
+	config = Config{}
+	config.InitFromFlags()
+	flag.PrintDefaults()
+
 	fmt.Println("Starting...")
-	outputFormat := strings.ToLower(os.Getenv("FORMAT"))
-	msgOut := strings.ToLower(os.Getenv("MSGOUT"))
 
 	var outputFormatFunc func(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string
 	var msgOutFunc func(msg string) string
 
-	switch msgOut {
+	switch config.MessageOutput {
 	case "full":
 		msgOutFunc = func(msg string) string {
 			return msg
@@ -41,21 +43,21 @@ func main() {
 	case "singlelinetrim":
 		msgOutFunc = singleLineTrim
 	default:
-		log.Panic("Unrecognized msg output format")
+		log.Fatal("Invalid Message Format")
 	}
 
-	switch outputFormat {
+	switch config.OutputFormat {
 	case "simple":
 		outputFormatFunc = toSimple
 	case "rfc5424":
 		outputFormatFunc = toRfc5424
 	default:
-		log.Panic("Unrecognized output format")
+		log.Fatal("Invalid output format")
 	}
 
 	shutdowner := make(chan bool)
 	go func(sig chan bool) {
-		//when we exit, signal it's done
+		// when we exit, signal it's done
 		defer func() {
 			sig <- true
 		}()
@@ -67,7 +69,10 @@ func main() {
 
 		// Recieve any future messages on the Application channel
 		// "*" doesn't filter by any fields of the event
-		watcher.SubscribeFromNow("Application", "*")
+		err = watcher.SubscribeFromNow(config.LogName, "*")
+		if err != nil {
+			log.Fatal(fmt.Sprint("Can not subscribe to log ", config.LogName))
+		}
 		defer watcher.Shutdown()
 	EventCollectionLoop:
 		for {
@@ -76,8 +81,8 @@ func main() {
 				fmt.Println(outputFormatFunc(evt, msgOutFunc))
 			case err := <-watcher.Error():
 				fmt.Printf("\nError: %v\n\n", err)
-				//Waiting for graceful shutdown signal is good enough to omit
-				//the 'default' block
+				// Waiting for graceful shutdown signal is good enough to omit
+				// the 'default' block
 			case <-sig:
 				break EventCollectionLoop
 				/* default:
@@ -98,27 +103,25 @@ func main() {
 }
 
 func singleLine(msg string) string {
-	return strings.ReplaceAll(msg, "\r\n", " ")
+	return replaceMulti(msg, []string{"\r", "\n"}, " ")
 }
 
 func singleLineTrim(msg string) string {
-	return strings.Split(msg, "\r\n")[0]
-}
-
-func parse(
-	evt *winlog.WinLogEvent,
-	formatFunc func(evt *winlog.WinLogEvent, msgFormat func(msg string) string) []string,
-	msgFormat func(msg string) string) string {
-	output := formatFunc(evt, msgFormat)
-	return strings.Join(output, " ")
+	return strings.Split(strings.Replace(msg, "\r", "", 1), "\r\n")[0]
 }
 
 func toSimple(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string {
 	level := eventLevel(evt.Level)
+	var levelMsg string
+	if config.UseColors {
+		levelMsg = fmt.Sprint(level.Color(), "[", level.String(), "]", colors.Reset)
+	} else {
+		levelMsg = fmt.Sprint("[", eventLevel(evt.Level).String(), "]")
+	}
 	output := []string{
 		evt.Created.Format(time.RFC3339),
-		fmt.Sprint(level.Color(), "[", level.String(), "]", colors.Reset),
-		evt.ProviderName,
+		levelMsg,
+		strings.ReplaceAll(evt.ProviderName, " ", "_"),
 		msgFormat(evt.Msg),
 	}
 	return strings.Join(output, " ")
@@ -130,10 +133,18 @@ func toRfc5424(evt *winlog.WinLogEvent, msgFormat func(msg string) string) strin
 		evt.Created.Format(time.RFC3339),
 		fmt.Sprint("[", eventLevel(evt.Level).String(), "]"),
 		evt.ComputerName,
-		evt.ProviderName,
+		strings.ReplaceAll(evt.ProviderName, " ", "_"),
 		strconv.FormatInt(int64(evt.ProcessId), 10),
 		strconv.FormatInt(int64(evt.EventId), 10),
 		msgFormat(evt.Msg),
 	}
 	return strings.Join(output, " ")
+}
+
+func replaceMulti(source string, toReplace []string, replacement string) string {
+	toReturn := source
+	for _, item := range toReplace {
+		toReturn = strings.ReplaceAll(toReturn, item, replacement)
+	}
+	return toReturn
 }
