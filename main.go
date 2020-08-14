@@ -1,3 +1,4 @@
+//Command line tool for hooking into the Windows Event Log and streaming messages as they come in
 package main
 
 import (
@@ -15,12 +16,14 @@ import (
 	"github.com/ofcoursedude/winlogstream/colors"
 )
 
+//winlogstream is a line tool for hooking into the Windows Event Log and streaming messages as they come in
+
+//In-app configuration object
 var config Config
 
 func main() {
 	fmt.Println("Welcome to winlogstream")
 	fmt.Println("Usage:")
-
 	config = Config{}
 	config.InitFromFlags()
 	flag.PrintDefaults()
@@ -106,14 +109,6 @@ func singleLine(msg string) string {
 func singleLineTrim(msg string) string {
 	return strings.Split(strings.Replace(msg, "\r", "", 1), "\r\n")[0]
 }
-
-/*func parse(
-	evt *winlog.WinLogEvent,
-	formatFunc func(evt *winlog.WinLogEvent, msgFormat func(msg string) string) []string,
-	msgFormat func(msg string) string) string {
-	output := formatFunc(evt, msgFormat)
-	return strings.Join(output, " ")
-}*/
 
 func toSimple(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string {
 	level := eventLevel(evt.Level)
