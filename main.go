@@ -121,7 +121,7 @@ func toSimple(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string
 	output := []string{
 		evt.Created.Format(time.RFC3339),
 		levelMsg,
-		evt.ProviderName,
+		strings.ReplaceAll(evt.ProviderName, " ", "_"),
 		msgFormat(evt.Msg),
 	}
 	return strings.Join(output, " ")
@@ -133,7 +133,7 @@ func toRfc5424(evt *winlog.WinLogEvent, msgFormat func(msg string) string) strin
 		evt.Created.Format(time.RFC3339),
 		fmt.Sprint("[", eventLevel(evt.Level).String(), "]"),
 		evt.ComputerName,
-		evt.ProviderName,
+		strings.ReplaceAll(evt.ProviderName, " ", "_"),
 		strconv.FormatInt(int64(evt.ProcessId), 10),
 		strconv.FormatInt(int64(evt.EventId), 10),
 		msgFormat(evt.Msg),
