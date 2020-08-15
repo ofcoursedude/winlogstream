@@ -40,6 +40,12 @@ jobs:
       command: 'build'
       arguments: '-o winlogstream.exe -ldflags "-X main.Version=$(BldMajor).$(BldMinor).$(Build.BuildID)"'
       workingDirectory: '$(System.DefaultWorkingDirectory)'
+  - task: CopyFiles@2
+    inputs:
+      SourceFolder: '$(System.DefaultWorkingDirectory)'
+      Contents: '*.exe'
+      TargetFolder: '$(Build.ArtifactStagingDirectory)'
+      CleanTargetFolder: true
   - task: PublishBuildArtifacts@1
     inputs:
       artifactName: drop
