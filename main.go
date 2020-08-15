@@ -21,6 +21,9 @@ import (
 //In-app configuration object
 var config Config
 
+//Version string
+var Version string = "dev build"
+
 func main() {
 	fmt.Println("Welcome to winlogstream")
 	fmt.Println("Usage:")
