@@ -38,7 +38,8 @@ jobs:
       GOOS: windows
     inputs:
       command: 'build'
-      arguments: '-ldflags "-X main.Version=$(BldMajor).$(BldMinor).$(Build.BuildID)"'
+      arguments: '-o winlogstream.exe -ldflags "-X main.Version=$(BldMajor).$(BldMinor).$(Build.BuildID)"'
+      workingDirectory: '$(System.DefaultWorkingDirectory)'
   - task: PublishBuildArtifacts@1
     inputs:
       artifactName: drop
