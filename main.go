@@ -1,52 +1,150 @@
+//Command line tool for hooking into the Windows Event Log and streaming messages as they come in
 package main
 
 import (
+	"flag"
 	"fmt"
-	winlog "github.com/ofcoursedude/gowinlog"
+	"log"
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
+
+	winlog "github.com/ofcoursedude/gowinlog"
+
+	"github.com/ofcoursedude/winlogstream/colors"
 )
 
+//winlogstream is a line tool for hooking into the Windows Event Log and streaming messages as they come in
+
+//In-app configuration object
+var config Config
+
 func main() {
+	fmt.Println("Welcome to winlogstream")
+	fmt.Println("Usage:")
+	config = Config{}
+	config.InitFromFlags()
+	flag.PrintDefaults()
+
 	fmt.Println("Starting...")
-	watcher, err := winlog.NewWinLogWatcher()
-	if err != nil {
-		fmt.Printf("Couldn't create watcher: %v\n", err)
-		return
+
+	var outputFormatFunc func(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string
+	var msgOutFunc func(msg string) string
+
+	switch config.MessageOutput {
+	case "full":
+		msgOutFunc = func(msg string) string {
+			return msg
+		}
+	case "singleline":
+		msgOutFunc = singleLine
+	case "singlelinetrim":
+		msgOutFunc = singleLineTrim
+	default:
+		log.Fatal("Invalid Message Format")
 	}
 
-	// Recieve any future messages on the Application channel
-	// "*" doesn't filter by any fields of the event
-	watcher.SubscribeFromNow("Application", "*")
-	for {
-		select {
-		case evt := <-watcher.Event():
-			// Print the event struct
-			// fmt.Printf("\nEvent: %v\n", evt)
-			// or print basic output
-			// fmt.Printf("\n%s: %s: %s\n", evt.LevelText, evt.ProviderName, evt.Msg)
-			fmt.Println(ToRfc5424(evt))
-		case err := <-watcher.Error():
-			fmt.Printf("\nError: %v\n\n", err)
-		default:
-			// If no event is waiting, need to wait or do something else, otherwise
-			// the the app fails on deadlock.
-			<-time.After(1 * time.Millisecond)
-		}
+	switch config.OutputFormat {
+	case "simple":
+		outputFormatFunc = toSimple
+	case "rfc5424":
+		outputFormatFunc = toRfc5424
+	default:
+		log.Fatal("Invalid output format")
 	}
+
+	shutdowner := make(chan bool)
+	go func(sig chan bool) {
+		// when we exit, signal it's done
+		defer func() {
+			sig <- true
+		}()
+		watcher, err := winlog.NewWinLogWatcher()
+		if err != nil {
+			fmt.Printf("Couldn't create watcher: %v\n", err)
+			return
+		}
+
+		// Recieve any future messages on the Application channel
+		// "*" doesn't filter by any fields of the event
+		err = watcher.SubscribeFromNow(config.LogName, "*")
+		if err != nil {
+			log.Fatal(fmt.Sprint("Can not subscribe to log ", config.LogName))
+		}
+		defer watcher.Shutdown()
+	EventCollectionLoop:
+		for {
+			select {
+			case evt := <-watcher.Event():
+				fmt.Println(outputFormatFunc(evt, msgOutFunc))
+			case err := <-watcher.Error():
+				fmt.Printf("\nError: %v\n\n", err)
+				// Waiting for graceful shutdown signal is good enough to omit
+				// the 'default' block
+			case <-sig:
+				break EventCollectionLoop
+				/* default:
+				// If no event is waiting, need to wait or do something else, otherwise
+				// the the app fails on deadlock.
+				<-time.After(1 * time.Millisecond) */
+			}
+		}
+	}(shutdowner)
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt)
+	<-ch
+	fmt.Println("Attempting graceful shutdown")
+	signal.Stop(ch)
+	shutdowner <- true
+	<-shutdowner
+	fmt.Println("Finished")
 }
 
-func ToRfc5424(evt *winlog.WinLogEvent) string{
-	output:= []string{
-		"<34>1",
+func singleLine(msg string) string {
+	return replaceMulti(msg, []string{"\r", "\n"}, " ")
+}
+
+func singleLineTrim(msg string) string {
+	return strings.Split(strings.Replace(msg, "\r", "", 1), "\r\n")[0]
+}
+
+func toSimple(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string {
+	level := eventLevel(evt.Level)
+	var levelMsg string
+	if config.UseColors {
+		levelMsg = fmt.Sprint(level.Color(), "[", level.String(), "]", colors.Reset)
+	} else {
+		levelMsg = fmt.Sprint("[", eventLevel(evt.Level).String(), "]")
+	}
+	output := []string{
 		evt.Created.Format(time.RFC3339),
-		evt.ComputerName,
-		evt.ProviderName,
-		strconv.FormatInt(int64(evt.ProcessId), 10),
-		strconv.FormatInt(int64(evt.EventId), 10),
-		evt.Msg,
+		levelMsg,
+		strings.ReplaceAll(evt.ProviderName, " ", "_"),
+		msgFormat(evt.Msg),
 	}
 	return strings.Join(output, " ")
-	// return fmt.Sprint ("<34>1",  evt.Created.Format(time.RFC3339), evt.ComputerName, evt.ProviderName, evt.ProcessId, evt.EventId, evt.Msg)
+}
+
+func toRfc5424(evt *winlog.WinLogEvent, msgFormat func(msg string) string) string {
+	output := []string{
+		"<34>1",
+		evt.Created.Format(time.RFC3339),
+		fmt.Sprint("[", eventLevel(evt.Level).String(), "]"),
+		evt.ComputerName,
+		strings.ReplaceAll(evt.ProviderName, " ", "_"),
+		strconv.FormatInt(int64(evt.ProcessId), 10),
+		strconv.FormatInt(int64(evt.EventId), 10),
+		msgFormat(evt.Msg),
+	}
+	return strings.Join(output, " ")
+}
+
+func replaceMulti(source string, toReplace []string, replacement string) string {
+	toReturn := source
+	for _, item := range toReplace {
+		toReturn = strings.ReplaceAll(toReturn, item, replacement)
+	}
+	return toReturn
 }
