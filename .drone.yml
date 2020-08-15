@@ -1,0 +1,16 @@
+kind: pipeline
+name: default
+
+trigger:
+  branch:
+  - master
+  - develop
+
+steps:
+- name: build
+  image: golang
+  environment:
+    GOOS: windows
+    GOARCH: amd64
+  commands:
+  - go build
