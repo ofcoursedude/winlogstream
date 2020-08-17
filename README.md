@@ -1,6 +1,5 @@
 # winlogstream [![Build Status](http://10.170.16.144:9090/api/badges/tools/winlogstream/status.svg)](http://10.170.16.144:9090/tools/winlogstream)
 
-
 Winlog stream is a tool to stream Windows Event Log events to console.
 
 ## to run
