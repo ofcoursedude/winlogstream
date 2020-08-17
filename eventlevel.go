@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ofcoursedude/winlogstream/colors"
+	"gitlab.certicon.cz/tools/winlogstream/colors"
 )
 
 type eventLevel int

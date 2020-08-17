@@ -13,7 +13,7 @@ import (
 
 	winlog "github.com/ofcoursedude/gowinlog"
 
-	"github.com/ofcoursedude/winlogstream/colors"
+	"gitlab.certicon.cz/tools/winlogstream/colors"
 )
 
 //winlogstream is a line tool for hooking into the Windows Event Log and streaming messages as they come in

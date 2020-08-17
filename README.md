@@ -1,8 +1,12 @@
-# winlogstream
+# winlogstream [![Build Status](http://10.170.16.144:9090/api/badges/tools/winlogstream/status.svg)](http://10.170.16.144:9090/tools/winlogstream)
+
 
 Winlog stream is a tool to stream Windows Event Log events to console.
 
 ## to run
+
+First, download the file from [here](http://apps.carelinkdevelopment.com:8888/winlogstream/)
+
 Run the exe file to see usage. 
 
 Please note log names are case sensitive and correspond to the field "Full Name" you can see when displaying the event log properties, not the descriptive name you see in the event log tree.
