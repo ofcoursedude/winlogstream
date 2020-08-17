@@ -82,7 +82,9 @@ func main() {
 		for {
 			select {
 			case evt := <-watcher.Event():
-				fmt.Println(outputFormatFunc(evt, msgOutFunc))
+				if evt.Level <= config.Severity {
+					fmt.Println(outputFormatFunc(evt, msgOutFunc))
+				}
 			case err := <-watcher.Error():
 				fmt.Printf("\nError: %v\n\n", err)
 				// Waiting for graceful shutdown signal is good enough to omit
