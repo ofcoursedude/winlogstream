@@ -21,8 +21,12 @@ import (
 //In-app configuration object
 var config Config
 
+//Version string
+var Version string = "dev build"
+
 func main() {
 	fmt.Println("Welcome to winlogstream")
+	fmt.Println("Version:", Version)
 	fmt.Println("Usage:")
 	config = Config{}
 	config.InitFromFlags()
@@ -78,7 +82,9 @@ func main() {
 		for {
 			select {
 			case evt := <-watcher.Event():
-				fmt.Println(outputFormatFunc(evt, msgOutFunc))
+				if evt.Level <= config.Severity {
+					fmt.Println(outputFormatFunc(evt, msgOutFunc))
+				}
 			case err := <-watcher.Error():
 				fmt.Printf("\nError: %v\n\n", err)
 				// Waiting for graceful shutdown signal is good enough to omit
