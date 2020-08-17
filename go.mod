@@ -1,4 +1,4 @@
-module github.com/ofcoursedude/winlogstream
+module gitlab.certicon.cz/tools/winlogstream
 
 go 1.14
 
