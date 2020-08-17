@@ -26,6 +26,7 @@ var Version string = "dev build"
 
 func main() {
 	fmt.Println("Welcome to winlogstream")
+	fmt.Println("Version:", Version)
 	fmt.Println("Usage:")
 	config = Config{}
 	config.InitFromFlags()
