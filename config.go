@@ -21,7 +21,7 @@ func (cfg *Config) InitFromFlags() {
 	logName := flag.String("logname", "Application", "Event log to attach to")
 	outputFormat := flag.String("outfmt", "simple", "Output format (simple/rfc5424)")
 	messageOutput := flag.String("msgout", "singleLine", "Message output format (singeLine/singleLineTrim/full")
-	useColors := flag.String("colors", "false", "Whether to use colors in simple output format (false/true)")
+	useColors := flag.String("colors", "false", "Whether to use colors in simple output format (false/true) - requires compatible terminal, e.g. Windows Terminal")
 	severity := flag.Uint64("severity", 4, "Minimal severity to log (1=CRIT, 2=ERR, 3=WARN, 4=INFO)")
 	flag.Parse()
 
