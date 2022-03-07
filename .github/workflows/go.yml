@@ -29,7 +29,7 @@ jobs:
       run:  go build -v -o artifacts/ -ldflags "-X main.Version=1.0.${{ github.run_id }}"
       
     - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       if: ${{github.event_name}} == "push"
       with:
         name: winlogstream
